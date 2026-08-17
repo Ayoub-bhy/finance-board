@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ayoub — Financial Board | لوحة المالية</title>
+<style>
+  :root{
+    --bg:#0f1420; --card:#1a2130; --card2:#202a3d; --line:#2c3850;
+    --txt:#e8edf5; --mut:#93a1b8;
+    --green:#34c98e; --yellow:#f2b93b; --red:#f2634e; --blue:#5b9cf5;
+    --greenbg:rgba(52,201,142,.12); --yellowbg:rgba(242,185,59,.12); --redbg:rgba(242,99,78,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',Tahoma,Arial,sans-serif;line-height:1.55;padding-bottom:40px}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px}
+  /* language toggle */
+  .langbar{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px 0}
+  .langbar button{background:var(--card);color:var(--mut);border:1px solid var(--line);padding:6px 16px;border-radius:20px;cursor:pointer;font-size:14px}
+  .langbar button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+  h1{font-size:24px;margin:10px 0 2px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:18px}
+  /* status bar */
+  .status{background:linear-gradient(135deg,#2a1e22,#1a2130);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:22px}
+  .status h2{font-size:16px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{flex:1 1 220px;border-radius:10px;padding:12px 14px;font-size:13px;border:1px solid var(--line)}
+  .chip b{display:block;font-size:14px;margin-bottom:3px}
+  .c-red{background:var(--redbg);border-color:var(--red)} .c-red b{color:var(--red)}
+  .c-yellow{background:var(--yellowbg);border-color:var(--yellow)} .c-yellow b{color:var(--yellow)}
+  .c-green{background:var(--greenbg);border-color:var(--green)} .c-green b{color:var(--green)}
+  .legend{display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--mut);flex-wrap:wrap}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:5px}
+  /* KPI tiles */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:22px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .tile .lbl{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  .tile .tl{font-size:22px;font-weight:700;margin-top:4px}
+  .tile .usd{color:var(--blue);font-size:13px;margin-top:2px}
+  /* sections */
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:22px}
+  section h2{font-size:17px;margin-bottom:14px;border-inline-start:4px solid var(--blue);padding-inline-start:10px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:9px 10px;text-align:start;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  td.num{font-variant-numeric:tabular-nums}
+  .usd-c{color:var(--blue)}
+  .pct{color:var(--mut)}
+  .bar{height:7px;border-radius:4px;background:var(--card2);overflow:hidden;margin-top:4px}
+  .bar i{display:block;height:100%;border-radius:4px}
+  tr.total td{font-weight:700;border-top:2px solid var(--line)}
+  .g{color:var(--green)} .y{color:var(--yellow)} .r{color:var(--red)}
+  ul{padding-inline-start:20px}
+  li{margin-bottom:10px;font-size:14px}
+  li b{color:var(--txt)}
+  .advice li::marker{color:var(--blue)}
+  .steps li{list-style:none;position:relative;padding-inline-start:30px}
+  .steps li::before{content:attr(data-n);position:absolute;inset-inline-start:0;top:1px;width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .note{font-size:12px;color:var(--mut);margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}
+  [dir="rtl"] body{font-family:'Segoe UI',Tahoma,Arial,sans-serif}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="langbar">
+  <button id="btn-en" class="active" onclick="setLang('en')">English</button>
+  <button id="btn-ar" onclick="setLang('ar')">العربية</button>
+</div>
+<div class="wrap" id="content"></div>
+
+<script>
+const RATE = 47.90;
+const fmtTL = v => "₺" + v.toLocaleString("en-US",{maximumFractionDigits:0});
+const fmtUSD = v => "$" + (v/RATE).toLocaleString("en-US",{maximumFractionDigits:0});
+
+const D = {
+  period:{en:"Statement period: 28 Apr – 17 Aug 2026 (~3.6 months) · Rate: 1 USD ≈ ₺47.90 (17 Aug 2026)",
+          ar:"فترة الكشف: 28 أبريل – 17 أغسطس 2026 (~3.6 أشهر) · سعر الصرف: 1 دولار ≈ 47.90 ليرة (17 أغسطس 2026)"},
+  title:{en:"Ayoub — Personal Finance Board", ar:"أيوب — لوحة المالية الشخصية"},
+  statusTitle:{en:"⚡ Situation Summary & Debt Status", ar:"⚡ ملخص الوضع وحالة الديون"},
+  chips:[
+    {c:"c-red", en:["🔴 Zero buffer — CRITICAL","Closing balance ₺360 ($8). You spend 100% of income. One late salary = missed rent."],
+                ar:["🔴 لا يوجد احتياطي — حرج","الرصيد الختامي 360 ليرة (8$). تنفق 100% من دخلك. تأخر راتب واحد = تعثر الإيجار."]},
+    {c:"c-yellow", en:["🟡 Unstructured outflows","~60% of money out goes to personal transfers, ATM cash & cards with no plan (₺61k/mo · $1,274)."],
+                   ar:["🟡 مصروفات غير منظمة","~60% من المصروفات تحويلات شخصية وسحب نقدي وبطاقات بدون خطة (61 ألف ليرة/شهر · 1,274$)."]},
+    {c:"c-yellow", en:["🟡 Debts: 2 credit cards","₺13,287 ($277) paid to two cards this period. Paid on time so far — no visible loan arrears. Keep zero revolving balance."],
+                   ar:["🟡 الديون: بطاقتا ائتمان","دفعت 13,287 ليرة (277$) لبطاقتين. السداد في وقته حتى الآن — لا متأخرات قروض ظاهرة. حافظ على تصفير الرصيد الدوّار."]},
+    {c:"c-green", en:["🟢 Housing ratio healthy","Rent + HOA + utilities ≈ 26% of salary — good for Istanbul. Rent always paid on the 1st."],
+                  ar:["🟢 نسبة السكن صحية","الإيجار + رسوم الموقع + الفواتير ≈ 26% من الراتب — جيدة لإسطنبول. الإيجار يُدفع دائماً في اليوم الأول."]}
+  ],
+  legend:{en:[["--red","Critical — act now"],["--yellow","Warning — needs structure"],["--green","Healthy — maintain"]],
+          ar:[["--red","حرج — تصرف فوراً"],["--yellow","تحذير — يحتاج تنظيماً"],["--green","صحي — حافظ عليه"]]},
+  tiles:[
+    {lbl:{en:"Money IN / month",ar:"الداخل شهرياً"}, pct:"100%", sub:{en:"your whole pie",ar:"كامل دخلك"}},
+    {lbl:{en:"Essentials (rent+bills)",ar:"الأساسيات (إيجار+فواتير)"}, pct:"26%", sub:{en:"healthy ✓",ar:"صحي ✓"}, col:"var(--green)"},
+    {lbl:{en:"Food (groceries+cafés)",ar:"الطعام (بقالة+مقاهي)"}, pct:"19%", sub:{en:"target 12%",ar:"الهدف 12%"}, col:"var(--yellow)"},
+    {lbl:{en:"Unstructured outflows",ar:"مصروفات غير منظمة"}, pct:"55%", sub:{en:"the leak — target 27%",ar:"التسريب — الهدف 27%"}, col:"var(--red)"},
+    {lbl:{en:"Saved",ar:"المدّخر"}, pct:"0%", sub:{en:"target 15%",ar:"الهدف 15%"}, col:"var(--red)"}
+  ],
+  tblTitle:{en:"📊 Where Each 100% Goes — Current vs Target", ar:"📊 أين تذهب كل 100% — الحالي مقابل الهدف"},
+  th:{en:["Category","Now","Target","Do this",""], ar:["الفئة","الآن","الهدف","افعل هذا",""]},
+  rows:[
+    {en:"Rent",ar:"الإيجار",p:19.9,t:20,act:{en:"Keep as is — paid on time ✓",ar:"أبقه كما هو — يُدفع في وقته ✓"},c:"var(--green)"},
+    {en:"HOA + utilities",ar:"رسوم الموقع + الفواتير",p:6.2,t:7,act:{en:"Keep — check Aug double internet bill",ar:"أبقه — تحقق من فاتورة الإنترنت المزدوجة في أغسطس"},c:"var(--green)"},
+    {en:"Groceries",ar:"البقالة",p:14.8,t:10,act:{en:"1 weekly list-shop instead of 10 trips",ar:"تسوق أسبوعي واحد بقائمة بدل 10 زيارات"},c:"var(--yellow)"},
+    {en:"Cafés & restaurants",ar:"المقاهي والمطاعم",p:4.2,t:2,act:{en:"Prepaid weekly café budget, cash",ar:"ميزانية مقهى أسبوعية مسبقة، نقداً"},c:"var(--yellow)"},
+    {en:"ATM cash",ar:"السحب النقدي",p:8.5,t:2,act:{en:"One withdrawal on payday only",ar:"سحبة واحدة يوم الراتب فقط"},c:"var(--red)"},
+    {en:"Credit card payback",ar:"سداد البطاقات",p:3.9,t:0,act:{en:"Freeze cards, clear in 2 months",ar:"جمّد البطاقات، صفّها خلال شهرين"},c:"var(--yellow)"},
+    {en:"Personal transfers & other",ar:"التحويلات الشخصية وأخرى",p:48.2,t:24,act:{en:"24h rule + name & date every transfer",ar:"قاعدة 24 ساعة + سمِّ وأرّخ كل تحويل"},c:"var(--red)"},
+    {en:"Savings (pay FIRST)",ar:"الادخار (ادفعه أولاً)",p:0,t:15,act:{en:"Auto-transfer 15% the moment salary lands",ar:"حوّل 15% تلقائياً لحظة وصول الراتب"},c:"var(--red)"}
+  ],
+  totalRow:{en:"Total",ar:"الإجمالي"},
+  anaTitle:{en:"🔍 Analysis", ar:"🔍 التحليل"},
+  analysis:{en:[
+    "<b>Income is strong but lumpy:</b> ₺100,790/mo average ($2,104) — but ranged from ₺11.7k (Apr) to ₺171.7k (Jun). Budgeting must use percentages, not fixed amounts.",
+    "<b>The leak is not living costs:</b> rent, bills, groceries and dining together are only ~40% of inflows. The other ~60% disappears into unplanned transfers (₺189.5k total / $3,956), ATM cash (₺29.1k / $608) and shopping.",
+    "<b>Grocery frequency problem:</b> 172 store trips in 16 weeks (10+/week) with 100 purchases under ₺100 — impulse territory. Spend rivals your rent.",
+    "<b>Café habit formed in June:</b> dining jumped ₺1.6k → ₺6.2k in one month; Portre Cafe alone is ₺5,585 ($117), 39% of all dining.",
+    "<b>Debt position is manageable:</b> two credit cards paid on time, BES pension contributions active, insurance installments current. The risk is not debt — it's the zero buffer."],
+    ar:[
+    "<b>الدخل قوي لكنه متقلب:</b> متوسط 100,790 ليرة شهرياً (2,104$) — لكنه تراوح بين 11.7 ألف (أبريل) و171.7 ألف (يونيو). يجب أن تُبنى الميزانية على نسب مئوية لا مبالغ ثابتة.",
+    "<b>التسريب ليس في تكاليف المعيشة:</b> الإيجار والفواتير والبقالة والمطاعم معاً ~40% فقط من الدخل. الـ60% الباقية تختفي في تحويلات غير مخططة (189.5 ألف ليرة / 3,956$) وسحب نقدي (29.1 ألف / 608$) وتسوّق.",
+    "<b>مشكلة تكرار البقالة:</b> 172 زيارة للمتاجر في 16 أسبوعاً (أكثر من 10 أسبوعياً) مع 100 عملية شراء أقل من 100 ليرة — منطقة الشراء الاندفاعي. الإنفاق يقارب الإيجار.",
+    "<b>عادة المقهى تكوّنت في يونيو:</b> قفز إنفاق المطاعم من 1.6 ألف إلى 6.2 ألف في شهر واحد؛ مقهى Portre وحده 5,585 ليرة (117$)، أي 39% من كل إنفاق المطاعم.",
+    "<b>وضع الديون تحت السيطرة:</b> بطاقتان تُسددان في وقتهما، اشتراكات التقاعد BES نشطة، أقساط التأمين منتظمة. الخطر ليس الديون — بل غياب الاحتياطي."]},
+  stepTitle:{en:"🎯 Next Steps", ar:"🎯 الخطوات التالية"},
+  steps:{en:[
+    "<b>Payday rule (start with next salary):</b> transfer 15% to a separate savings/participation account the moment it lands — before any spending.",
+    "<b>Milestone 1 — ₺25,000 ($522) buffer within 2 months.</b> Milestone 2 — ₺95,000 ($1,983) emergency fund (3 months of fixed costs) by early 2027.",
+    "<b>Cut ATM cash to one planned withdrawal/month.</b> Card payments keep money traceable and avoid the ₺20.91 other-bank fees.",
+    "<b>Groceries: 1–2 planned weekly shops.</b> Target ₺2,400/week ($50) — saves ~₺3,000/mo ($63).",
+    "<b>Cap cafés at ₺2,000/mo ($42)</b> — halves the habit without killing it. Saves ~₺18k/year ($376).",
+    "<b>Name every transfer:</b> if transfers to friends/family are loans, log them with dates; if support, make it a fixed monthly line item with a cap.",
+    "<b>Verify two items:</b> the double Superonline charge in August (₺700 + ₺2,400) and the missing HOA payments for Jul–Aug."],
+    ar:[
+    "<b>قاعدة يوم الراتب (ابدأ من الراتب القادم):</b> حوّل 15% إلى حساب ادخار/مشاركة منفصل فور وصوله — قبل أي إنفاق.",
+    "<b>الهدف 1 — احتياطي 25,000 ليرة (522$) خلال شهرين.</b> الهدف 2 — صندوق طوارئ 95,000 ليرة (1,983$) أي 3 أشهر من التكاليف الثابتة بحلول أوائل 2027.",
+    "<b>قلّص السحب النقدي إلى سحبة واحدة مخططة شهرياً.</b> الدفع بالبطاقة يُبقي المال قابلاً للتتبع ويجنّبك رسوم صرافات البنوك الأخرى (20.91 ليرة).",
+    "<b>البقالة: زيارة أو زيارتان مخططتان أسبوعياً.</b> الهدف 2,400 ليرة أسبوعياً (50$) — توفير ~3,000 ليرة شهرياً (63$).",
+    "<b>سقف المقاهي 2,000 ليرة شهرياً (42$)</b> — يخفض العادة للنصف دون إلغائها. توفير ~18 ألف ليرة سنوياً (376$).",
+    "<b>سمِّ كل تحويل:</b> إذا كانت التحويلات للأصدقاء/العائلة قروضاً فسجّلها بتواريخها؛ وإذا كانت إعالة فاجعلها بنداً شهرياً ثابتاً بسقف محدد.",
+    "<b>تحقق من أمرين:</b> رسم Superonline المزدوج في أغسطس (700 + 2,400 ليرة) ومدفوعات رسوم الموقع المفقودة ليوليو وأغسطس."]},
+  debtTitle:{en:"💳 Debt Payback Plan & Habit Correction", ar:"💳 خطة سداد الديون وتصحيح العادات"},
+  debtIntro:{en:"Debts identified from your statement history: two credit cards (₺13,287 / $277 paid this period — card •6361 and card •7186) and possible informal debts via personal transfers (net ~₺15,300 to Mohammad Nasser, ₺18,960 to Haytham, ₺6,000 to Olesia — confirm which are loans vs. gifts/shared costs). No bank loan arrears visible. The plan below assumes ₺15,000/mo ($313) allocated from your average salary (~16%).",
+             ar:"الديون المحددة من سجل حسابك: بطاقتا ائتمان (13,287 ليرة / 277$ مسددة هذه الفترة — بطاقة •6361 وبطاقة •7186) وديون غير رسمية محتملة عبر التحويلات الشخصية (صافي ~15,300 ليرة لمحمد ناصر، 18,960 لهيثم، 6,000 لأوليسيا — حدد أيها قروض وأيها هدايا/مصاريف مشتركة). لا توجد متأخرات قروض بنكية ظاهرة. الخطة أدناه تفترض تخصيص 15,000 ليرة شهرياً (313$) من متوسط راتبك (~16%)."},
+  debtSteps:{en:[
+    "<b>Week 1 — Write the debt list.</b> Both card statements (balance, minimum, interest rate) + every person you owe or who owes you, with amounts and dates. You cannot pay back what you haven't named.",
+    "<b>Freeze new card spending.</b> Cards go in a drawer until both show ₺0 statement balance. Live on debit only — your statement proves you already can (most daily spend is debit).",
+    "<b>Avalanche order:</b> pay minimums on everything, throw the rest of the ₺15k at the highest-interest card first (in Turkey that's almost always the card, ~4%+/month). At your payment pace both cards clear in ≤2 months.",
+    "<b>Then redirect, don't absorb:</b> the day the cards hit zero, the same ₺15k/mo flows to personal debts (oldest first), then to your ₺25k buffer. The habit of paying stays; only the destination changes.",
+    "<b>Personal debts get dates:</b> message each person a concrete repayment date. Vague debts stay unpaid; dated debts get paid.",
+    "<b>Habit fix — replace, don't resist:</b> ① Daily café trigger (Portre, twice/day) → prepaid weekly café budget of ₺500 cash in a separate pocket; when it's gone, it's gone. ② 10+ grocery trips/week → one Sunday list-shop + one midweek top-up, nothing else. ③ ATM urge → one ₺5,000 withdrawal on payday, envelope system. ④ Unnamed transfers → 24-hour rule: any transfer over ₺1,000 waits one day and gets a written reason.",
+    "<b>Direct action today:</b> open the two card apps, check balances and rates, set autopay to FULL statement amount (not minimum), and send yourself the debt list before you sleep."],
+    ar:[
+    "<b>الأسبوع 1 — اكتب قائمة الديون.</b> كشفا البطاقتين (الرصيد، الحد الأدنى، الفائدة) + كل شخص تدين له أو يدين لك، بالمبالغ والتواريخ. لا يمكنك سداد ما لم تسمّه.",
+    "<b>جمّد الإنفاق بالبطاقات.</b> ضع البطاقتين في الدرج حتى يصل رصيد كل منهما إلى صفر. عش على بطاقة الخصم فقط — كشفك يثبت أنك قادر (معظم إنفاقك اليومي خصم مباشر).",
+    "<b>ترتيب الانهيار الجليدي:</b> ادفع الحد الأدنى للجميع، ووجّه باقي الـ15 ألفاً للبطاقة الأعلى فائدة أولاً (في تركيا هي البطاقة دائماً تقريباً، ~4%+ شهرياً). بوتيرة سدادك الحالية تُصفّى البطاقتان خلال شهرين أو أقل.",
+    "<b>ثم أعد التوجيه ولا تمتص:</b> يوم تصل البطاقات للصفر، تتدفق نفس الـ15 ألفاً شهرياً للديون الشخصية (الأقدم أولاً)، ثم لاحتياطي الـ25 ألفاً. عادة الدفع تبقى؛ الوجهة فقط تتغير.",
+    "<b>الديون الشخصية تحتاج تواريخ:</b> راسل كل شخص بتاريخ سداد محدد. الديون الغامضة تبقى بلا سداد؛ الديون المؤرخة تُسدد.",
+    "<b>تصحيح العادات — استبدل ولا تقاوم:</b> ① محفّز المقهى اليومي (Portre مرتين يومياً) → ميزانية مقهى أسبوعية مسبقة 500 ليرة نقداً في جيب منفصل؛ إذا انتهت انتهت. ② أكثر من 10 زيارات بقالة أسبوعياً → تسوق واحد بقائمة يوم الأحد + تعبئة واحدة منتصف الأسبوع، لا غير. ③ رغبة السحب النقدي → سحبة واحدة 5,000 ليرة يوم الراتب، نظام المظاريف. ④ التحويلات غير المسماة → قاعدة الـ24 ساعة: أي تحويل فوق 1,000 ليرة ينتظر يوماً ويُكتب سببه.",
+    "<b>إجراء مباشر اليوم:</b> افتح تطبيقي البطاقتين، راجع الأرصدة والفوائد، فعّل السداد التلقائي بكامل مبلغ الكشف (وليس الحد الأدنى)، وأرسل لنفسك قائمة الديون قبل النوم."]},
+  genTitle:{en:"💡 General Advice", ar:"💡 نصائح عامة"},
+  general:{en:[
+    "Pay yourself first — savings is a bill you owe your future, not what's left over.",
+    "With lira inflation, keep the emergency fund in a participation (profit-sharing) account or partly in hard currency/gold so it doesn't melt.",
+    "Your income is in ₺ but partly USD-linked (RemotePass) — thinking in USD, as this board does, protects you from money illusion when the lira moves.",
+    "Never carry a revolving credit-card balance in Turkey — interest rates make it the most expensive money you can borrow.",
+    "Review this board monthly: if 'Left over' isn't at least 10% of inflows, the month failed regardless of how it felt.",
+    "Small leaks sink ships: 100 purchases under ₺100 cost you ₺5,184 ($108) — invisible individually, a utility bill collectively."],
+    ar:[
+    "ادفع لنفسك أولاً — الادخار فاتورة تدين بها لمستقبلك، وليس ما يتبقى.",
+    "مع تضخم الليرة، احتفظ بصندوق الطوارئ في حساب مشاركة أو جزئياً بعملة صعبة/ذهب حتى لا تذوب قيمته.",
+    "دخلك بالليرة لكنه مرتبط جزئياً بالدولار (RemotePass) — التفكير بالدولار، كما تفعل هذه اللوحة، يحميك من وهم المال عند تحرك الليرة.",
+    "لا تُبقِ رصيداً دوّاراً على البطاقة الائتمانية في تركيا — الفوائد تجعله أغلى اقتراض ممكن.",
+    "راجع هذه اللوحة شهرياً: إذا لم يكن 'المتبقي' 10% على الأقل من الدخل، فالشهر فشل مهما بدا شعورياً.",
+    "التسريبات الصغيرة تُغرق السفن: 100 عملية شراء أقل من 100 ليرة كلّفتك 5,184 ليرة (108$) — غير مرئية فردياً، فاتورة خدمات مجتمعةً."]},
+  note:{en:"Data source: bank statement 28 Apr – 17 Aug 2026 (400 transactions). USD figures use ₺47.90/USD. This is structured coaching, not licensed financial advice.",
+        ar:"مصدر البيانات: كشف الحساب البنكي 28 أبريل – 17 أغسطس 2026 (400 عملية). الأرقام الدولارية بسعر 47.90 ليرة/دولار. هذا توجيه منظم وليس استشارة مالية مرخصة."}
+};
+
+function render(lang){
+  const t = k => k[lang];
+  let h = `<h1>${t(D.title)}</h1><div class="sub">${t(D.period)}</div>`;
+  // status bar
+  h += `<div class="status"><h2>${t(D.statusTitle)}</h2><div class="chips">`;
+  D.chips.forEach(c=>{ const [b,txt]=c[lang]; h+=`<div class="chip ${c.c}"><b>${b}</b>${txt}</div>`; });
+  h += `</div><div class="legend">`;
+  D.legend[lang].forEach(([col,txt])=>h+=`<span><span class="dot" style="background:var(${col})"></span>${txt}</span>`);
+  h += `</div></div>`;
+  // tiles (percentage-first)
+  h += `<div class="tiles">`;
+  D.tiles.forEach(ti=>{
+    h+=`<div class="tile"><div class="lbl">${ti.lbl[lang]}</div><div class="tl" style="color:${ti.col||'var(--txt)'}">${ti.pct}</div><div class="usd">${ti.sub[lang]}</div></div>`;
+  });
+  h += `</div>`;
+  // table: now vs target %
+  h += `<section><h2>${t(D.tblTitle)}</h2><table><tr>`;
+  D.th[lang].forEach(x=>h+=`<th>${x}</th>`); h+=`</tr>`;
+  let totN=0, totT=0;
+  D.rows.forEach(r=>{
+    totN+=r.p; totT+=r.t;
+    const arrow = r.p>r.t ? `<span class="r">▼ ${(r.p-r.t).toFixed(1)}</span>` : (r.t>r.p ? `<span class="g">▲ ${(r.t-r.p).toFixed(1)}</span>` : `<span class="g">✓</span>`);
+    h+=`<tr><td>${r[lang]}</td><td class="num" style="color:${r.c};font-weight:700">${r.p}%</td><td class="num pct">${r.t}% ${arrow}</td><td style="font-size:13px">${r.act[lang]}</td>
+    <td style="min-width:120px"><div class="bar"><i style="width:${Math.min(r.p,100)}%;background:${r.c}"></i></div><div class="bar" style="margin-top:3px;opacity:.45"><i style="width:${Math.min(r.t,100)}%;background:var(--blue)"></i></div></td></tr>`;
+  });
+  h+=`<tr class="total"><td>${t(D.totalRow)}</td><td class="num">${totN.toFixed(0)}%</td><td class="num">${totT.toFixed(0)}%</td><td colspan="2" style="font-size:12px;color:var(--mut)">${lang==='en'?"Colored bar = now · blue bar = target. Current total >100% because spending also ate non-salary inflows.":"الشريط الملون = الآن · الأزرق = الهدف. الإجمالي الحالي فوق 100% لأن الإنفاق استهلك أيضاً الدخل غير الراتبي."}</td></tr>`;
+  h+=`</table></section>`;
+  // golden rule strip
+  h += `<section style="background:linear-gradient(135deg,#16241f,#1a2130)"><h2 style="border-color:var(--green)">${lang==='en'?"🥇 The One Rule":"🥇 القاعدة الذهبية"}</h2><p style="font-size:15px">${lang==='en'?"<b>15% out on payday → 55% to live → 30% max for transfers & everything else.</b> If 'Saved' isn't 15% at month-end, the month failed — no matter how it felt.":"<b>15% تُحوَّل يوم الراتب → 55% للمعيشة → 30% كحد أقصى للتحويلات وكل شيء آخر.</b> إذا لم يكن المدّخر 15% نهاية الشهر، فالشهر فشل — مهما كان شعورك."}</p></section>`;
+  // analysis
+  h += `<section><h2>${t(D.anaTitle)}</h2><ul class="advice">`;
+  D.analysis[lang].forEach(x=>h+=`<li>${x}</li>`); h+=`</ul></section>`;
+  // steps
+  h += `<section><h2>${t(D.stepTitle)}</h2><ul class="steps">`;
+  D.steps[lang].forEach((x,i)=>h+=`<li data-n="${i+1}">${x}</li>`); h+=`</ul></section>`;
+  // debt plan
+  h += `<section><h2>${t(D.debtTitle)}</h2><p style="font-size:13px;color:var(--mut);margin-bottom:14px">${t(D.debtIntro)}</p><ul class="steps">`;
+  D.debtSteps[lang].forEach((x,i)=>h+=`<li data-n="${i+1}">${x}</li>`); h+=`</ul></section>`;
+  // general advice
+  h += `<section><h2>${t(D.genTitle)}</h2><ul class="advice">`;
+  D.general[lang].forEach(x=>h+=`<li>${x}</li>`); h+=`</ul>`;
+  h += `<div class="note">${t(D.note)}</div></section>`;
+  document.getElementById('content').innerHTML = h;
+}
+function setLang(l){
+  document.documentElement.lang = l;
+  document.documentElement.dir = l==='ar' ? 'rtl' : 'ltr';
+  document.getElementById('btn-en').classList.toggle('active', l==='en');
+  document.getElementById('btn-ar').classList.toggle('active', l==='ar');
+  render(l);
+}
+render('en');
+</script>
+</body>
+</html>
